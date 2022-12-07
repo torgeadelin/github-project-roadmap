@@ -1,34 +1,89 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import './App.css'
+import { useCallback, useEffect, useState } from "react";
+import reactLogo from "./assets/react.svg";
+import "./App.css";
+import {
+  Gantt,
+  Task,
+  EventOption,
+  StylingOption,
+  ViewMode,
+  DisplayOption,
+} from "gantt-task-react";
+
+import { Octokit } from "octokit";
+
+const octokit = new Octokit({
+  auth: "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",
+});
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [milestones, setMilestones] = useState([]);
+
+  const createGanttData = useCallback((result: any) => {
+    return result.data.map((item: any) => {
+      return {
+        url: item.url,
+        end: new Date(item.due_on),
+        start: new Date(item.created_at),
+        name: item.title,
+        id: item.id,
+        type: "task",
+        styles: { progressColor: "#ffbb54", progressSelectedColor: "#ff9e0d" },
+        progress:
+          item.open_issues + item.closed_issues === 0
+            ? 0
+            : Math.floor(
+                (item.closed_issues / (item.open_issues + item.closed_issues)) *
+                  100
+              ),
+      };
+    });
+  }, []);
+
+  useEffect(() => {
+    octokit
+      .request("GET /repos/{owner}/{repo}/milestones", {
+        owner: "momentum-design",
+        repo: "momentum-design",
+      })
+      .then((result) => {
+        console.log(result);
+        setMilestones(createGanttData(result));
+      });
+
+    return () => {};
+  }, []);
 
   return (
     <div className="App">
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+      <h1>@momentum-design Roadmap</h1>
+      <a
+        href="https://github.com/momentum-design/momentum-design/milestones"
+        target="_blank"
+      >
+        Milestones on Git
+      </a>
+      <div
+        style={{
+          marginTop: '2rem',
+          background: "white",
+          color: "black",
+          borderRadius: "1rem",
+          overflow: "hidden",
+        }}
+      >
+        {milestones.length !== 0 ? (
+          <Gantt
+            todayColor="#fffa99aa"
+            tasks={milestones}
+            viewMode={ViewMode.Week}
+          />
+        ) : (
+          <p>Loading...</p>
+        )}
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
